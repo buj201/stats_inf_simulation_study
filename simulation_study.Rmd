@@ -1,0 +1,398 @@
+---
+title: "Simulation Study"
+author: "Benjamin Jakubowski"
+date: "March 22, 2016"
+output: html_document
+---
+
+# Tortoise and Hare Racing Problem
+## 1. Comparing mean finishing times using a two-sample T test
+### (a) Specifying null and alternative hypotheses
+
+Recall we are interesting in testing whether the true mean finishing time is the same for team tortoise and team hare. The null and alternative hypotheses for this problem are:
+
+$$latex
+\begin{align*}
+& H_0: \mu_{Hare} = \mu_{Tortoise} \\
+& H_A: \mu_{Hare} \ne \mu_{Tortoise}
+\end{align*}
+$$
+
+Using a two-sided alternative (versus a one-sided alternative) has two implications:
+
+1. First, a two-sided alternative is more conservative than a one-sided hypothesis. While we could construct a one-sided tests with the same size as our two-sided test, it would have a larger rejection region than the two-sided test on the side of interest. Hence, for a test of a given size, our two-sided test may fail to reject where our one-sided test would reject the null.
+2. Less theoretically, in the context of this problem using a two-sided hypothesis test indicates we don't have a strong prior belief that either (i) the hares will beat the tortoises, or (ii) the tortoises will beat the hares. In the absence of this belief, the two-sided test (i.e. test to see if there is a difference in either direction) is appropriate.
+
+### (b) Find the difference in means
+
+The difference in sample means is shown below:
+
+```{r}
+setwd('~/Desktop/MS_Courses/Stats_inf_regression/Simulation_Study/')
+t_and_h = read.csv('race.csv', header=TRUE)
+diff_means = function(dataframe){
+#Args- Dataframe with Hare and Tortoise attributes
+#Returns- difference in means between Hare and Tortoise
+    return(mean(dataframe$Hare) - mean(dataframe$Tortoise))
+}
+```
+
+The difference in sample means is `r diff_means(t_and_h)`.
+
+### (c) Find the variance of the difference in means
+
+First, we derive the formula for $\textrm{Var}(\bar{X}_1 - \bar{X}_2)$ for two arbitrary populations, assuming equal variances. Then we apply this formula to to determine the variance of the difference in means for the tortoises and for the hares.
+
+First, the derivation- note we assume the samples are independent throughout:
+$$
+\begin{align*}
+\textrm{Var}(\bar{X}_1 - \bar{X}_2) &= \textrm{Var}(\bar{X}_1) - (-1)^2 \textrm{Var}(\bar{X}_2) \\
+  &= \textrm{Var}(\sum_{i = 1}^{N_1} X_{1_i}) + \textrm{Var}(\sum_{i = 1}^{N_2} X_{2_i}) \\
+  &= \sum_{i = 1}^{N_1} \frac{1}{N_1^2}\textrm{Var}(X_{1_i}) + \sum_{i = 1}^{N_2} \frac{1}{N_2^2}\textrm{Var}(X_{2_i}) \\
+  &= N_1 \frac{1}{N_1^2}\textrm{Var}(X_{1}) + N_2 \frac{1}{N_2^2}\textrm{Var}(X_{2})
+\end{align*}
+$$
+Now assume $\textrm{Var}(X_1) = \textrm{Var}(X_2) = \textrm{Var}(X)$. Then this equals
+$${Var}(\bar{X}_1 - \bar{X}_2) = \left(\frac{1}{N_1} + \frac{1}{N_2} \right) \textrm{Var}(X)$$
+Thus, to complete the derivation, we need only derive an estimator for $\textrm{Var}(X)$. Since we assume both populations have equal variances, we use both samples to estimate this variance:
+$$
+\begin{align*}
+\textrm{Var}(X) &= \frac{\sum_{i = 1}^{N_1}(X_{1_i} - \bar{X}_1)^2 + \sum_{i = 1}^{N_2}(X_{2_i} - \bar{X}_2)^2}{N_1 + N_2 -2} \\
+&= \frac{(N_1 - 1)S_1^2 + (N_2 - 1)S_2^2}{N_1 + N_2 -2}
+\end{align*}
+$$
+Note we have $N_1 + N_2 -2$ in the denominator so this is an unbiased estimator:
+$$
+\begin{align*}
+\textrm{E}[\textrm{Var}(X)] &= \textrm{E}\left[\frac{(N_1 - 1)S_1^2 + (N_2 - 1)S_2^2}{N_1 + N_2 -2}\right] \\
+&= \frac{(N_1 - 1)\textrm{E}[S_1^2] + (N_2 - 1)\textrm{E}[S_2^2]}{N_1 + N_2 -2} \\
+&= \frac{(N_1 - 1)\textrm{Var}(X) + (N_2 - 1)\textrm{Var}(X)}{N_1 + N_2 -2} \\
+&= \frac{(N_1 - 1) + (N_2 - 1)}{N_1 + N_2 -2}\textrm{Var}(X) \\
+&= \textrm{Var}(X)
+\end{align*}
+$$
+
+Finally, putting it all together, we get the desired result:
+$$
+\textrm{Var}(\bar{X}_1 - \bar{X}_2) = \left(\frac{1}{N_1} + \frac{1}{N_2} \right) \textrm{Var}(X) = \frac{(N_1 - 1)S_1^2 + (N_2 - 1)S_2^2}{N_1 + N_2 -2}\left(\frac{1}{N_1} + \frac{1}{N_2} \right)
+$$
+
+Now let's find the estimated variance of the difference in sample means in our tortoise/hare problem:
+
+```{r}
+var_t_minus_h = function(dataframe){
+#Args- Dataframe with Hare and Tortoise attributes
+#Returns- variance of difference in means between Hare and Tortoise
+  n_rows = nrow(dataframe)
+  return((var(dataframe$Hare)*(n_rows-1.0)+var(dataframe$Tortoise)*(n_rows-1.0))/(2.0*n_rows-2.0)*(1.0/n_rows+1.0/n_rows))
+}
+```
+
+The estimated variance of the difference in sample means is `r var_t_minus_h(t_and_h)`.
+
+### (d) Independent two-sample t-test
+
+#### (i) Calculate test statistics and p-value
+
+First, we find the test statistic:
+
+```{r}
+t_stat = function(dataframe){
+#Args- Dataframe with Hare and Tortoise attributes
+#Returns- t statistic for independent sample, pooled variance difference in means between Hare and Tortoise 
+  return(diff_means(dataframe)/sqrt(var_t_minus_h(dataframe)))
+}
+```
+
+The value of the test statistic is `r t_stat(t_and_h)`.
+
+Next, we find the p-value
+```{r}
+## Note we're conducting a two-sided test
+p_value = function(dataframe){
+#Args- Dataframe with Hare and Tortoise attributes
+#Returns- p-value for t-test for independent sample, pooled variance difference in means between Hare and Tortoise 
+  t_stat_df = t_stat(dataframe)
+  n_rows = nrow(dataframe)
+  pt(t_stat_df, df=(2*n_rows-2)) + pt(-t_stat_df, df=(2*n_rows-2), lower.tail=FALSE) 
+}
+```
+
+The p-value is `r p_value(t_and_h)`.
+
+#### (ii) Finding rejection region for level 5% test
+
+Next, we find the rejection region for a level 5% test:
+```{r}
+## Note we're conducting a two-sided test
+lower = qt(0.025, df=(2*nrow(t_and_h)-2))
+upper = qt(0.975, df=(2*nrow(t_and_h)-2))
+```
+
+The rejection region is ($\infty$, `r lower`] and [`r upper`, $\infty$).
+
+Obviously our test statistic falls outside the rejection region (note this was apparent from the p-value), so we fail to reject the null hypothesis- we failed to detect a sigificant difference in the tortoises and hares' sample means at the $\alpha = 0.05$ level.
+
+#### (iii) Justifying assumptions of two sample 2-test
+
+In conducting our two sample t-test, we made the following assumptions:
+
+1. The data follow the normal distribution (for both populations).
+2. The variances of the two populations are equal.
+3. The samples are independent.
+
+Let's first compare normal q-q plots to see if the normality assumption appears justified:
+```{r}
+par(mfrow=c(1,2))
+qqnorm(t_and_h$Hare, main = "Normal Q-Q Plot: Hares")
+qqline(t_and_h$Hare, col=2)
+qqnorm(t_and_h$Tortoise, main = "Normal Q-Q Plot: Tortoises")
+qqline(t_and_h$Tortoise, col=2)
+```
+
+From these data, it's apparent that the data are approximately normal, with the exception of two extreme outliers (one hare and one tortoise).
+
+The sample variance for the hares was `r var(t_and_h$Hare)`, and the sample variance for the tortoises was `r var(t_and_h$Tortoise)`. These are not approximately equal (though the difference is essentially due to the outliers), our second assumption is not justified.
+
+The third assumption is justifiable in the context of the problem- each animal can be reasonably assumed to finish with a time independent of the others.
+
+Thus, overall the two outlying observations indicate our assumptions may not be justified.
+
+## 2. Analysis using Mann-Whitney U-Test
+
+In this section, we will use the Mann-Whitney U-test to test the hypotheses
+$$
+H_0: P(X_{hare}<X_{tortoise}) = P(X_{tortoise} < X_{hare})
+$$
+$$
+H_A: P(X_{hare}<X_{tortoise}) \ne P(X_{tortoise} < X_{hare})
+$$
+
+Recall the U statistic is based on the sum pair-wise comparisons between members of the two teams (using only rank information).
+
+### (a) Calculate U-statistic for each team
+
+Now we're going to compare the tortoises and hares using the Mann-Whitney U-Test. To compute the U statistic, we first define a function:
+
+```{r}
+u_stats = function(pop_1, pop_2){
+  U_1 = 0
+  U_2 = 0
+  for (i in pop_1){
+    for (j in pop_2){
+      if (i < j){
+        U_1 = U_1 + 1
+      }
+      else if(j < i){
+        U_2 = U_2 + 1
+      }
+    }
+  }
+  return(c(U_1,U_2))
+}
+
+u_stats_h_and_t = function(dataframe){
+#Args- Dataframe with Hare and Tortoise attributes
+#Returns- U-statistics from Mann-Whitney U-test
+  result = u_stats(dataframe$Hare, dataframe$Tortoise)
+  return(result)
+}
+```
+
+Using our function, we find the U statistics are
+
+| **Population** | **U statistic** |
+|:--------:|:---------:|
+| Hares      | `r u_stats_h_and_t(t_and_h)[1]`|
+| Tortoises      | `r u_stats_h_and_t(t_and_h)[2]`|
+
+### (b) Expected value of U under the null
+
+Under the null hypothesis, $P(X_{hare}<X_{tortoise}) = P(X_{tortoise}<X_{hare})$. Therefore, $\textrm{E}[U_{hare}]= \textrm{E}[U_{tortoise}] = 50$.
+
+To see why, simply note (considering $U_{hare}$, though the argument is obviously equivalent for $U_{tortoise}$)
+$$P(U_{hare} = c) = P(U_{hare} = 100 - c)$$
+for every $c < 50$. Thus, the distribuiton of $U_{hare}$ is symmetric about 50 under the null, so 50 is the expected value.
+
+### (c) Using normal approximation for U
+#### i. Z-statistic for Mann-Whitney U-test
+
+To find the z_statistic, we first determine the standard deviation:
+
+```{r}
+z_stat = function(dataframe){
+#Args- Dataframe with Hare and Tortoise attributes
+#Returns- z-statistic for normal approximation of the U-statistic distribution, and p-value for z-statistic
+  n_rows = nrow(dataframe)
+  sd_u = sqrt(n_rows^2*(2*n_rows+1)/12)
+  z_dataframe = (u_stats_h_and_t(dataframe)[1] - 50)/(sd_u)
+  p_val_z = pnorm(-z_dataframe, lower.tail=TRUE)+ pnorm(z_dataframe, lower.tail=FALSE)
+  return(c(z_dataframe, p_val_z))
+}
+```
+
+The z-statistics is `r z_stat(t_and_h)[1]`, and the p-value is `r z_stat(t_and_h)[2]`.
+
+#### ii. Conclusion for this hypothesis test
+
+At the $\alpha = 0.05$ significance level, we reject the null hypothesis and conclude there is a signficant differece between the tortoise and hare race times.
+
+#### iii. Comparing results to `wilcox.test`
+
+Next, we use `wilcox.test` to test the same hypothesis and compare results:
+
+```{r}
+wilcox.test(t_and_h$Hare, t_and_h$Tortoise, exact=F, correct=F, alternative=c("two.sided"))
+```
+
+The values of the test statistic (here `W`) and p-value from the `wilcox.test` are equal to the values we obtained. Note the arguments `exact` and `correct` are (from the help docs):
+
+* `exact`: a logical indicating whether an exact p-value should be computed.
+    * *Interpretation*: The exact p-value would be computed using the exact distribution of the U-statistic (based on computing the test statistic for all possible permutations of the data). Instead, we set `exact` to false to correspond to our application of the normal approximation of the U-statistic distribution.
+* `correct`: a logical indicating whether to apply continuity correction in the normal approximation for the p-value.
+    * *Interpretation*: The continuity correction would account for the fact that the test statistic has a discrete distribution (i.e $U \in \{0,\cdots, 100\}$). Hence, we could get an improved estimate of of $P(U \geq c | H_0)$ by using $P(U \geq c - \frac{1}{2} | H_0)$.[^1]
+
+## 3. Permutation Test
+
+Our objective in this section is to explore permutation tests. We first (a) generate 3000 permuted datasets and (b) calculate various test statistics for these permuted datasets; then we explore these sample distributions in (c-f).
+
+### (a) Generating 3000 permuted datasets.
+
+First we generate 3000 permuted datasets.
+
+```{r}
+gen_perm_data = function(num_perm_sets){
+  data = list()
+  for (i in 1:num_perm_sets){
+    data[[i]] = data.frame(matrix(data.matrix(t_and_h)[sample(1:20)], nrow=10, dimnames=list(1:10,c('Hare','Tortoise'))))
+  }
+  return(data)
+}
+
+perm_data = gen_perm_data(3000)
+```
+
+### (b) Computing test statistics
+
+Now, for each dataset, we compute the test statistics- note we need to first write a function to compute the  the 
+
+```{r}
+library(reshape2)
+sum_ranks = function(dataframe){
+  all_data = melt(dataframe, measure.vars=c('Hare','Tortoise'))
+  all_data = transform(all_data, rank = rank(all_data$value))
+  W_Hare = sum(all_data[which(all_data$variable == 'Hare'), 'rank'])
+  W_Tortoise = sum(all_data[which(all_data$variable == 'Tortoise'), 'rank'])
+  return(c(W_Hare, W_Tortoise))
+}
+
+sum_stats = function(perm_data){
+  sum_stats_results = matrix(0,3000,7)
+  colnames(sum_stats_results) = c('diff_means', 't_stat', 'U_hare', 'U_tortoise', 'z_stat', 'W_hare', "W_tortoise")
+  for (i in 1:length(perm_data)){
+    sum_stats_results[i, 1] = diff_means(perm_data[[i]])
+    sum_stats_results[i, 2] = t_stat(perm_data[[i]] )
+    U_s = u_stats_h_and_t(perm_data[[i]])
+    sum_stats_results[i, 3] = U_s[1]
+    sum_stats_results[i, 4] = U_s[2]
+    sum_stats_results[i, 5] = z_stat(perm_data[[i]])[1]
+    W_s = sum_ranks(perm_data[[i]])
+    sum_stats_results[i, 6] = W_s[1]
+    sum_stats_results[i, 7] = W_s[2]
+  }
+  return(data.frame(sum_stats_results))
+}
+
+sum_stats_results = sum_stats(perm_data)
+```
+
+### (c) Expected vs. actual mean values
+
+By symmetry (induced by randomly permuting the observations), we expect the means of each of the sampling distributions to be
+
+| Statistic | $\bar{X}_{hare} - \bar{X}_{tortoise}$ | $t$ | $U_{hare}$ | $U_{tortoise}$ | $z$ | $W_{hare}$ | $W_{tortoise}$ | 
+|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
+| Expected mean | 0 | 0 | $\frac{100}{2} = 50$ | $\frac{100}{2} = 50$ | 0 | $\sum_{i=1}^{20} i = \frac{20(20+1)}{2} = 105$ | $\sum_{i=1}^{20} i = \frac{20(20+1)}{2} = 105$ |
+
+In our 3000 permutations, we obtained the following mean values:
+
+| Statistic | $\bar{X}_{hare} - \bar{X}_{tortoise}$ | $t$ | $U_{hare}$ | $U_{tortoise}$ | $z$ | $W_{hare}$ | $W_{tortoise}$ | 
+|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
+| Simulated mean | `r mean(sum_stats_results[,1])` | `r mean(sum_stats_results[,2])` | `r mean(sum_stats_results[,3])` | `r mean(sum_stats_results[,4])` | `r mean(sum_stats_results[,5])` | `r mean(sum_stats_results[,6])` | `r mean(sum_stats_results[,7])`  |
+
+Obviously this confirms our expectations.
+
+### (d) Histograms of sampling distributions of statistics
+
+Histograms showing the sampling distributions of the statistics listed above are shown below[^2]:
+
+```{r}
+library(ggplot2)
+d <- melt(sum_stats_results, measure.vars = c('diff_means', 't_stat', 'U_hare', 'U_tortoise', 'z_stat', 'W_hare', "W_tortoise"))
+ggplot(d,aes(x = value)) + facet_wrap(~variable,scales = "free_x") + geom_histogram(bins=20)
+```
+
+Looking at the histograms, a couple of observations jump out:
+
+1. The sampling distribution of the difference and means and the t-statistic are both strongly bimodal. This make senses in the context of the data- since we are only dealing with 20 data points, the large outlier (100) tends to pull the difference and means, and the t statistic, away from zero (positive if it is labeled "hare", negative if it is labeled "tortoise" in the permutation).
+2. In contrast, the other five histograms show unimodal distributions. This makes sense- since the $U, W$, and $z$ approximation of $U$ statistics are rank statistics, they are robust to outliers.
+3. Finally, it is worth noting that all the distributions are approximately symmetric (as expected under random permutation).
+
+### (e) Comparing sample distributions to theoretical distributions for the t and z statistics.
+
+To compare the actual and theoretical distribution of the t-statistic and z-statistic, Q-Q plots are presented below:
+
+```{r}
+par(mfrow=c(1,2))
+qqnorm(sum_stats_results$z_stat, main = "Normal Q-Q Plot: z-statistic", font.main=1)
+qqline(sum_stats_results$z_stat, col=2)
+qqplot(rt(3000, df = 18), sum_stats_results$t_stat, main = expression('T'[18]*' Q-Q Plot: t-statistic'), xlab=expression('Theoretical T'[18]*' quantiles'), ylab='Sample Quantiles')
+qqline(sum_stats_results$t_stat, distribution = function(p) qt(p,df = 18), col=2)
+```
+
+From these Q-Q plots, it is apparent the z-statistic (i.e. normal approximation of the $U$ sampling distribution) follows the standard normal distribution. As expected, the Q-Q plot for our t-statistic shows it does not follow the $T_{18}$ distribution. This is obvious, given the T distribution is unimodal, while the distribution of the sample statistic was bimodal.
+
+### (f) Simulation based p-values.
+
+To find simulation based p-values, we compare the values of the test statistics from our observed sample to the sample distributions achieved from our permutation samples.
+
+```{r}
+p_val_calc = function(feature, obs_value){
+#Args: feature - stat in sum_stats_result to find p-value for
+#      obs_value - observed value of statistic in t_and_h (sample)
+#Returns: p-value for stat
+  half_p_val = length(sum_stats_results[which(sum_stats_results[,feature] >= obs_value), feature])/3000.0
+  if (half_p_val > 0.5){
+    half_p_val = length(sum_stats_results[which(sum_stats_results[,feature] <= obs_value), feature])/3000.0
+  }
+  return(2*half_p_val)
+}
+```
+
+| Statistic | $\bar{X}_{hare} - \bar{X}_{tortoise}$ | $t$ | $U_{hare}$ | $U_{tortoise}$ | $z$ | $W_{hare}$ | $W_{tortoise}$ | 
+|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
+| Value for observed sample | `r diff_means(t_and_h)` | `r t_stat(t_and_h)` | `r u_stats_h_and_t(t_and_h)[1]` | `r u_stats_h_and_t(t_and_h)[2]` | `r z_stat(t_and_h)[1]` | `r sum_ranks(t_and_h)[1]` | `r sum_ranks(t_and_h)[2]` |
+| P-value | `r p_val_calc('diff_means', diff_means(t_and_h))` | `r p_val_calc('t_stat', t_stat(t_and_h))` | `r p_val_calc('U_hare', u_stats_h_and_t(t_and_h)[1])` | `r p_val_calc('U_tortoise',u_stats_h_and_t(t_and_h)[2])` | `r p_val_calc('z_stat', z_stat(t_and_h)[1])` | `r p_val_calc('W_hare', sum_ranks(t_and_h)[1])` | `r p_val_calc('W_tortoise', sum_ranks(t_and_h)[2])` |
+
+
+## (4) Summary
+
+4. Summarize your findings from the first three questions by comparing your results across different tests. In which situations would you prefer one of these tests over another? Broadly comment on the pro’s and con’s of each of these approaches.
+
+Our goal in this study was to make statistical inference about the tortoise and hare race problem; specifically, on average, do the hares and tortoises finish with the same times, or different times?
+
+Our approach was to first use a two-sample t-test for difference in means (assuming equal population variances). Using this method, we obtained a p-value of `r t_stat(t_and_h)`. However, upon further inspection, we noted the presence of two outliers in the dataset. These outliers caused the normality and equal variance assumptions of the two-sample t-test to not be met, and as such invalidated the test (and corresponding p-value).
+
+As such, we proceeded to use a set of non-parametric hypothesis tests (specifically the Mann-Whitney U-test and Wilcox’s rank sum test). These tests only use rank information from the data, and as such are robust to outliers. Using these two methods, we obtained very different p-values. Using the normal approximation to the U distribution, we obtained a p-value of `z_stat(t_and_h)[2]`. Further study (using permutation test) produced simulation based p-values of `r p_val_calc('U_hare', u_stats_h_and_t(t_and_h)[1])` for the Mann-Whitney U-Test and `r p_val_calc('W_hare', sum_ranks(t_and_h)[1])` for Wilcox's rank sum test. 
+
+Based on these results, we can reach the following conclusions:
+
+1. The outliers invalidate the t-test by making the data distribution distinctly non-normal. This is visible in both the Normal Q-Q plots of the data, as well as in the $T_{18}$ Q-Q plot of the simulation t-statistic distribution.
+2. On the other hand, because non-parametric rank statistics are more robust to outliers, the p-values from the Mann-Whitney U-test (and normal approximation) and the Wilcox’s rank sum test are valid.
+3. These comparisons hold in general- unless the assumptions made for the parametric test hold (and they often don't), their statistical guarentees are invalid. On the other hand, non-parametric tests make minimal assumptions and as such are more robust to irregularities in the distribtuion of the data.
+
+[^1]:
+Rabi Bhattacharya, Continuity Correction. http://statprob.com/encyclopedia/ContinuityCorrection.html
+[^2]:
+joran (username), "Plot every column in a data frame as a histogram on one page using ggplot"
+http://stackoverflow.com/questions/13035834/plot-every-column-in-a-data-frame-as-a-histogram-on-one-page-using-ggplot
